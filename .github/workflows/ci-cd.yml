@@ -1,0 +1,110 @@
+# CI/CD for the Portfolio RAG POC
+#  - Pull request to main: build API + UI (CI only)
+#  - Push to main:         build, then deploy to Azure App Service and smoke-test /health
+#
+# One-time setup: run infra/setup-hosting.ps1, then add the GitHub secrets/variables it prints.
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:          # "Run workflow" button in GitHub
+
+permissions:
+  contents: read
+  id-token: write             # needed for OIDC login to Azure (no stored passwords)
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '22'
+  API_PROJECT: src/PortfolioRag.Api/PortfolioRag.Api.csproj
+  UI_DIR: src/portfolio-ui
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- Angular UI ----------
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+
+      - name: Install UI packages
+        working-directory: ${{ env.UI_DIR }}
+        run: npm ci
+
+      - name: Build UI (production)
+        working-directory: ${{ env.UI_DIR }}
+        run: npx ng build --configuration production
+
+      # ---------- .NET API ----------
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.API_PROJECT }}
+
+      - name: Build
+        run: dotnet build ${{ env.API_PROJECT }} -c Release --no-restore
+
+      # Add a test project later and uncomment:
+      # - name: Test
+      #   run: dotnet test --no-build -c Release
+
+      - name: Publish API
+        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-build -o ./publish
+
+      - name: Copy UI into API wwwroot
+        run: |
+          mkdir -p ./publish/wwwroot
+          cp -r ${{ env.UI_DIR }}/dist/portfolio-ui/browser/* ./publish/wwwroot/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: ./publish
+          retention-days: 7
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production          # must match the OIDC federated credential subject
+      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app
+          path: ./publish
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: ./publish
+
+      - name: Smoke test /health
+        run: |
+          url="https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)
+            echo "Attempt $i: HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 15
+          done
+          echo "Health check failed"; exit 1

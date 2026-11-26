@@ -1,0 +1,152 @@
+<header class="topbar">
+  <div>
+    <h1>Advisor Workspace</h1>
+    <span class="sub">Portfolio review PDF + RAG assistant (Azure OpenAI, AI Search, Blob)</span>
+  </div>
+  <label class="advisor">Advisor
+    <input [(ngModel)]="advisorName" />
+  </label>
+</header>
+
+@if (error()) { <div class="banner error">{{ error() }}</div> }
+@if (notice()) { <div class="banner info">{{ notice() }}</div> }
+
+<main class="layout">
+  <!-- Customers -->
+  <aside class="panel customers">
+    <h2>Customers</h2>
+    @for (c of customers(); track c.id) {
+      <button class="customer" [class.active]="c.id === selectedId()" (click)="select(c.id)">
+        <strong>{{ c.fullName }}</strong>
+        <span>{{ c.id }} · {{ c.riskProfile }}</span>
+        <span class="value">{{ c.totalValue | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
+      </button>
+    } @empty {
+      <p class="muted">No customers loaded.</p>
+    }
+    <button class="secondary full" (click)="indexPolicy()">Index sample firm policy</button>
+    <p class="hint">Do this once so the assistant can quote firm rules (rebalancing, fees, limits).</p>
+  </aside>
+
+  <!-- Portfolio + reviews -->
+  <section class="panel portfolio">
+    @if (portfolio(); as p) {
+      <div class="row-between">
+        <div>
+          <h2>{{ p.fullName }}</h2>
+          <span class="muted">{{ p.accountNumberMasked }} · {{ p.riskProfile }} · Advisor {{ p.advisorName }}</span>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><span>Market value</span><strong>{{ p.totalValue | currency }}</strong></div>
+        <div class="kpi"><span>Cost basis</span><strong>{{ p.totalCost | currency }}</strong></div>
+        <div class="kpi">
+          <span>Unrealized gain/loss</span>
+          <strong [class.neg]="p.totalGainLoss < 0" [class.pos]="p.totalGainLoss >= 0">{{ p.totalGainLoss | currency }}</strong>
+        </div>
+      </div>
+
+      <h3>Allocation vs target</h3>
+      <table>
+        <thead><tr><th>Asset class</th><th class="num">Actual</th><th class="num">Target</th><th>Drift</th></tr></thead>
+        <tbody>
+          @for (a of p.allocation; track a.assetClass) {
+            <tr>
+              <td>{{ a.assetClass }}</td>
+              <td class="num">{{ a.weightPct | number: '1.1-1' }}%</td>
+              <td class="num">{{ a.targetPct | number: '1.0-0' }}%</td>
+              <td><span class="pill" [class]="'pill ' + driftClass(a.weightPct, a.targetPct)">
+                {{ a.weightPct - a.targetPct | number: '1.1-1' }} pts</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <h3>Holdings</h3>
+      <table>
+        <thead><tr><th>Symbol</th><th>Name</th><th>Class</th><th class="num">Value</th><th class="num">Gain/loss</th><th class="num">Weight</th></tr></thead>
+        <tbody>
+          @for (h of p.holdings; track h.symbol) {
+            <tr>
+              <td><strong>{{ h.symbol }}</strong></td>
+              <td>{{ h.name }}</td>
+              <td>{{ h.assetClass }}</td>
+              <td class="num">{{ h.marketValue | currency: 'USD' : 'symbol' : '1.0-0' }}</td>
+              <td class="num" [class.neg]="h.gainLoss < 0" [class.pos]="h.gainLoss >= 0">{{ h.gainLoss | currency: 'USD' : 'symbol' : '1.0-0' }}</td>
+              <td class="num">{{ h.weightPct | number: '1.1-1' }}%</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="request">
+        <h3>Request portfolio review PDF</h3>
+        <textarea [(ngModel)]="advisorNotes" rows="2"
+          placeholder="Advisor notes for the client (optional), e.g. retiring in 2030, wants less tech exposure"></textarea>
+        <button (click)="generateReview()" [disabled]="generating()">
+          {{ generating() ? 'Generating...' : 'Generate review PDF' }}
+        </button>
+      </div>
+
+      <h3>Reviews</h3>
+      <table>
+        <thead><tr><th>Created</th><th>Requested by</th><th>Status</th><th class="num">Chunks</th><th></th></tr></thead>
+        <tbody>
+          @for (r of reviews(); track r.id) {
+            <tr>
+              <td>{{ r.createdUtc | date: 'MMM d, y, h:mm a' }}</td>
+              <td>{{ r.requestedBy }}</td>
+              <td><span class="pill" [class.ok]="r.status === 'Indexed'" [class.bad]="r.status === 'Failed'" [title]="r.error ?? ''">{{ r.status }}</span></td>
+              <td class="num">{{ r.chunksIndexed }}</td>
+              <td>@if (r.blobName) { <a [href]="api.reviewPdfUrl(r.id)" target="_blank">Open PDF</a> }</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="muted">No reviews yet. Generate one above.</td></tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="muted">Select a customer.</p>
+    }
+  </section>
+
+  <!-- RAG chat -->
+  <section class="panel chat">
+    <h2>Ask the documents</h2>
+    <p class="hint">Answers come only from this customer's review PDFs and firm policy, with sources.</p>
+
+    @if (!hasIndexedReview()) {
+      <p class="banner info small">Generate a review PDF first so there is something to search.</p>
+    }
+
+    <div class="messages">
+      @for (m of messages(); track $index) {
+        <div class="msg" [class.user]="m.role === 'user'" [class.assistant]="m.role === 'assistant'" [class.ungrounded]="m.grounded === false">
+          <div class="bubble">{{ m.content }}</div>
+          @if (m.citations?.length) {
+            <div class="sources">
+              @for (c of m.citations; track c.number) {
+                <a [href]="api.fileUrl(c.blobName)" target="_blank" [title]="c.snippet">
+                  [{{ c.number }}] {{ c.documentName }}, p.{{ c.pageNumber }}
+                </a>
+              }
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="suggestions">
+          @for (s of suggestions; track s) {
+            <button class="chip" (click)="ask(s)">{{ s }}</button>
+          }
+        </div>
+      }
+      @if (asking()) { <div class="msg assistant"><div class="bubble typing">Searching documents...</div></div> }
+    </div>
+
+    <form class="ask" (ngSubmit)="ask()">
+      <input name="q" [(ngModel)]="question" placeholder="Ask about this customer's portfolio..." autocomplete="off" />
+      <button type="submit" [disabled]="asking() || !question.trim()">Ask</button>
+    </form>
+  </section>
+</main>

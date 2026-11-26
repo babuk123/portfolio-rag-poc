@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>portfolio-rag-poc-7d3c1a</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.*" />
+    <!-- Azure OpenAI (chat + embeddings) -->
+    <PackageReference Include="Azure.AI.OpenAI" Version="2.1.*" />
+    <!-- Azure AI Search (index, hybrid vector search) -->
+    <PackageReference Include="Azure.Search.Documents" Version="11.6.*" />
+    <!-- Azure Blob Storage (PDF files) -->
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.*" />
+    <!-- PDF generation (free Community license for revenue under $1M) -->
+    <PackageReference Include="QuestPDF" Version="2025.*" />
+    <!-- PDF text extraction for RAG ingestion -->
+    <PackageReference Include="PdfPig" Version="0.1.*" />
+  </ItemGroup>
+
+</Project>

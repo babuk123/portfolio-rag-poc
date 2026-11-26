@@ -1,0 +1,46 @@
+@api = http://localhost:5017
+
+### Health
+GET {{api}}/health
+
+### 1. List customers
+GET {{api}}/api/customers
+
+### 2. Portfolio for one customer
+GET {{api}}/api/customers/C1001
+
+### 3. Index the sample firm policy (do this once)
+POST {{api}}/api/documents/sample-policy
+
+### 4. Advisor requests a portfolio review PDF
+POST {{api}}/api/customers/C1001/reviews
+Content-Type: application/json
+
+{
+  "requestedBy": "Alex Carter",
+  "advisorNotes": "Client plans to retire in 2030 and asked about reducing tech concentration."
+}
+
+### 5. List reviews for a customer (copy an id for step 6)
+GET {{api}}/api/customers/C1001/reviews
+
+### 6. Download a review PDF
+GET {{api}}/api/reviews/<review-id>/pdf
+
+### 7. Ask the RAG chatbot
+POST {{api}}/api/chat
+Content-Type: application/json
+
+{
+  "customerId": "C1001",
+  "question": "Does Maria's portfolio need rebalancing under our policy? Which asset class is off target?"
+}
+
+### 8. Question the documents can't answer (should say it can't answer)
+POST {{api}}/api/chat
+Content-Type: application/json
+
+{
+  "customerId": "C1001",
+  "question": "What will Apple stock be worth next year?"
+}

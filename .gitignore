@@ -1,0 +1,15 @@
+# .NET
+bin/
+obj/
+publish/
+*.user
+.vs/
+
+# Angular / Node
+node_modules/
+dist/
+.angular/
+
+# Secrets (keys live in user-secrets locally and App Service settings in Azure)
+appsettings.*.local.json
+*.env

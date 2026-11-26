@@ -1,0 +1,73 @@
+:host { display: block; min-height: 100vh; background: #f4f6f9; color: #1d2433; font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; background: #1f3a5f; color: #fff; }
+.topbar h1 { margin: 0; font-size: 20px; }
+.topbar .sub { font-size: 12px; opacity: .8; }
+.advisor { font-size: 12px; display: flex; gap: 8px; align-items: center; }
+.advisor input { padding: 6px 8px; border-radius: 6px; border: none; }
+
+.banner { margin: 12px 24px 0; padding: 10px 14px; border-radius: 8px; }
+.banner.info { background: #e6f0fb; color: #174a7c; }
+.banner.error { background: #fdecec; color: #9b1c1c; }
+.banner.small { margin: 8px 0; font-size: 12px; }
+
+.layout { display: grid; grid-template-columns: 240px 1fr 400px; gap: 16px; padding: 16px 24px; }
+@media (max-width: 1200px) { .layout { grid-template-columns: 220px 1fr; } .chat { grid-column: 1 / -1; } }
+@media (max-width: 800px)  { .layout { grid-template-columns: 1fr; } }
+
+.panel { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(16, 24, 40, .08); }
+h2 { margin: 0 0 8px; font-size: 16px; }
+h3 { margin: 18px 0 8px; font-size: 14px; color: #1f3a5f; }
+.muted { color: #6b7280; }
+.hint { color: #6b7280; font-size: 12px; margin: 6px 0 0; }
+.row-between { display: flex; justify-content: space-between; align-items: flex-start; }
+
+.customer { color: #1d2433; display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 10px; margin-bottom: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; cursor: pointer; gap: 2px; }
+.customer span { font-size: 12px; color: #6b7280; }
+.customer .value { color: #1d2433; font-weight: 600; }
+.customer.active { border-color: #1f3a5f; background: #eef3fa; }
+
+button { background: #1f3a5f; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 600; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.secondary { background: #fff; color: #1f3a5f; border: 1px solid #1f3a5f; }
+button.full { width: 100%; margin-top: 12px; }
+
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.kpi { background: #f7f9fc; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.kpi span { font-size: 12px; color: #6b7280; }
+.kpi strong { font-size: 18px; }
+
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; padding: 6px; }
+td { border-bottom: 1px solid #f0f1f3; padding: 6px; }
+.num { text-align: right; }
+.pos { color: #137333; }
+.neg { color: #b42318; }
+
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #eef0f3; }
+.pill.ok { background: #e7f6ec; color: #137333; }
+.pill.warn { background: #fff4e0; color: #8a5300; }
+.pill.bad { background: #fdecec; color: #b42318; }
+
+.request { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.request h3 { margin-bottom: 0; }
+textarea, .ask input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 8px; font: inherit; }
+.request button { align-self: flex-start; }
+
+.chat { display: flex; flex-direction: column; max-height: calc(100vh - 120px); }
+.messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin: 10px 0; min-height: 260px; }
+.msg { display: flex; flex-direction: column; max-width: 92%; }
+.msg.user { align-self: flex-end; }
+.msg.assistant { align-self: flex-start; }
+.bubble { padding: 10px 12px; border-radius: 12px; white-space: pre-wrap; line-height: 1.45; }
+.msg.user .bubble { background: #1f3a5f; color: #fff; }
+.msg.assistant .bubble { background: #f2f4f7; }
+.msg.ungrounded .bubble { background: #fff4e0; }
+.typing { font-style: italic; color: #6b7280; }
+.sources { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.sources a { font-size: 12px; color: #1f5fa8; text-decoration: none; }
+.sources a:hover { text-decoration: underline; }
+
+.suggestions { display: flex; flex-direction: column; gap: 6px; }
+.chip { background: #eef3fa; color: #1f3a5f; font-weight: 500; text-align: left; }
+.ask { display: flex; gap: 8px; }
