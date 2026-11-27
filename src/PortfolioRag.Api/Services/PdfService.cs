@@ -10,6 +10,12 @@ public class PdfService
 {
     private const string Navy = "#1F3A5F";
 
+    // Servers run on UTC; show dates in the firm's local time (Windows and Linux both accept this IANA id in .NET 6+).
+    private static readonly TimeZoneInfo BusinessTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+
+    private static DateTime ToLocal(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), BusinessTimeZone);
+
     static PdfService() => QuestPDF.Settings.License = LicenseType.Community;
 
     public byte[] CreatePortfolioReview(PortfolioDto p, ReviewRequest req)
@@ -27,7 +33,7 @@ public class PdfService
             {
                 col.Item().Text("Contoso Wealth Management").FontSize(9).FontColor(Colors.Grey.Darken1);
                 col.Item().Text("Portfolio Review").FontSize(20).Bold().FontColor(Navy);
-                col.Item().Text($"Prepared for {p.FullName} on {req.CreatedUtc:MMMM d, yyyy}").FontSize(11);
+                col.Item().Text($"Prepared for {p.FullName} on {ToLocal(req.CreatedUtc):MMMM d, yyyy}").FontSize(11);
                 col.Item().PaddingTop(6).LineHorizontal(1).LineColor(Navy);
             });
 

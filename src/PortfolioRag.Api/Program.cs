@@ -1,7 +1,11 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using PortfolioRag.Api.Data;
 using PortfolioRag.Api.Options;
 using PortfolioRag.Api.Services;
+
+// Linux App Service has no regional culture set, so "C" would print a generic currency sign. Use US formatting everywhere.
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("en-US");
 
 var builder = WebApplication.CreateBuilder(args);
 
