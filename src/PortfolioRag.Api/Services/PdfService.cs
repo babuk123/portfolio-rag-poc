@@ -52,15 +52,28 @@ public class PdfService
                     t.Line($"Review requested by: {req.RequestedBy}");
                 });
 
-                // 2. Portfolio value
+                // 2. Portfolio value: key numbers + line chart
                 col.Item().Text("2. Portfolio value").FontSize(13).Bold().FontColor(Navy);
-                col.Item().Text(t =>
+                var pct = p.TotalCost == 0 ? 0 : p.TotalGainLoss / p.TotalCost * 100;
+                col.Item().Row(row =>
                 {
-                    t.Line($"Total market value: {p.TotalValue:C}");
-                    t.Line($"Total cost basis: {p.TotalCost:C}");
-                    var pct = p.TotalCost == 0 ? 0 : p.TotalGainLoss / p.TotalCost * 100;
-                    t.Line($"Unrealized gain/loss: {p.TotalGainLoss:C} ({pct:F1}%)");
+                    void Kpi(string label, string value, string color)
+                    {
+                        row.RelativeItem().Column(k =>
+                        {
+                            k.Item().Text(label).FontSize(8.5).FontColor(Colors.Grey.Darken1);
+                            k.Item().Text(value).Bold().FontSize(13).FontColor(color);
+                        });
+                    }
+                    Kpi("Market value", $"{p.TotalValue:C}", Navy);
+                    Kpi("Cost basis", $"{p.TotalCost:C}", Navy);
+                    Kpi("Unrealized gain/loss", $"{p.TotalGainLoss:C} ({pct:+0.0;-0.0}%)", p.TotalGainLoss < 0 ? "#B42318" : "#137333");
                 });
+                var history = ChartSvg.SampleHistory(p, ToLocal(req.CreatedUtc));
+                col.Item().Height(170).Svg(size => ChartSvg.LineChart(size.Width, size.Height, history, p.TotalCost));
+                // Full sentences so the chatbot can retrieve them; clearly marked as sample data.
+                col.Item().Text($"Portfolio value trend, last 12 months (illustrative sample data for this POC): from {history[0].Value:C0} in {history[0].Month:MMMM yyyy} to {history[^1].Value:C0} in {history[^1].Month:MMMM yyyy}. The dashed line is the total cost basis of {p.TotalCost:C0}.")
+                    .FontSize(8).FontColor(Colors.Grey.Darken1);
 
                 // 3. Asset allocation vs target
                 col.Item().Text("3. Asset allocation vs target").FontSize(13).Bold().FontColor(Navy);
@@ -82,25 +95,35 @@ public class PdfService
                     }
                 });
 
-                // 4. Holdings
-                col.Item().Text("4. Holdings").FontSize(13).Bold().FontColor(Navy);
-                col.Item().Table(table =>
+                // 4. Holdings: pie chart + legend table (the table keeps the numbers searchable for the chatbot)
+                col.Item().ShowEntire().Column(sec =>
                 {
-                    table.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(4); c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(); });
-                    table.Header(h =>
+                sec.Spacing(8);
+                sec.Item().Text("4. Holdings").FontSize(13).Bold().FontColor(Navy);
+                sec.Item().Row(row =>
+                {
+                    row.ConstantItem(160).Height(160).Svg(size => ChartSvg.Pie(size.Width, p.Holdings));
+                    row.ConstantItem(16);
+                    row.RelativeItem().AlignMiddle().Table(table =>
                     {
-                        foreach (var title in new[] { "Symbol", "Name", "Asset class", "Market value", "Gain/loss", "Weight" })
-                            h.Cell().Background(Navy).Padding(4).Text(title).FontColor(Colors.White).Bold();
+                        table.ColumnsDefinition(c => { c.ConstantColumn(14); c.RelativeColumn(); c.RelativeColumn(3); c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(); });
+                        table.Header(h =>
+                        {
+                            h.Cell().Text("");
+                            foreach (var title in new[] { "Symbol", "Name", "Market value", "Gain/loss", "Weight" })
+                                h.Cell().BorderBottom(1).BorderColor(Navy).PaddingVertical(3).Text(title).Bold().FontSize(9).FontColor(Navy);
+                        });
+                        foreach (var (h, i) in p.Holdings.Select((h, i) => (h, i)))
+                        {
+                            table.Cell().PaddingVertical(4).AlignMiddle().Width(9).Height(9).Background(ChartSvg.Palette[i % ChartSvg.Palette.Length]);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).Text(h.Symbol).Bold().FontSize(9);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).Text(h.Name).FontSize(9);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).AlignRight().Text($"{h.MarketValue:C0}").FontSize(9);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).AlignRight().Text($"{h.GainLoss:C0}").FontSize(9).FontColor(h.GainLoss < 0 ? "#B42318" : "#137333");
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).AlignRight().Text($"{h.WeightPct:F1}%").FontSize(9);
+                        }
                     });
-                    foreach (var h in p.Holdings)
-                    {
-                        table.Cell().BorderBottom(0.5f).Padding(4).Text(h.Symbol);
-                        table.Cell().BorderBottom(0.5f).Padding(4).Text(h.Name);
-                        table.Cell().BorderBottom(0.5f).Padding(4).Text(h.AssetClass);
-                        table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"{h.MarketValue:C}");
-                        table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"{h.GainLoss:C}");
-                        table.Cell().BorderBottom(0.5f).Padding(4).AlignRight().Text($"{h.WeightPct:F1}%");
-                    }
+                });
                 });
 
                 // 5. Observations (written as full sentences so the chatbot can retrieve them)
