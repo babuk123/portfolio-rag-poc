@@ -27,5 +27,7 @@ public record ChatResponse(string Answer, IReadOnlyList<Citation> Citations, boo
 public static class Mapping
 {
     public static ReviewDto ToDto(this ReviewRequest r) =>
-        new(r.Id, r.CustomerId, r.RequestedBy, r.AdvisorNotes, r.Status, r.BlobName, r.ChunksIndexed, r.Error, r.CreatedUtc);
+        new(r.Id, r.CustomerId, r.RequestedBy, r.AdvisorNotes, r.Status, r.BlobName, r.ChunksIndexed, r.Error,
+            // SQL returns DateTime with Kind=Unspecified, which serializes without "Z" and browsers read it as local time.
+            DateTime.SpecifyKind(r.CreatedUtc, DateTimeKind.Utc));
 }
