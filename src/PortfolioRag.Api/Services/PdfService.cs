@@ -61,7 +61,7 @@ public class PdfService
                     {
                         row.RelativeItem().Column(k =>
                         {
-                            k.Item().Text(label).FontSize(8.5).FontColor(Colors.Grey.Darken1);
+                            k.Item().Text(label).FontSize(8.5f).FontColor(Colors.Grey.Darken1);
                             k.Item().Text(value).Bold().FontSize(13).FontColor(color);
                         });
                     }
