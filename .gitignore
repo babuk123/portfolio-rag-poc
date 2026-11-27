@@ -13,3 +13,7 @@ dist/
 # Secrets (keys live in user-secrets locally and App Service settings in Azure)
 appsettings.*.local.json
 *.env
+
+# Never commit deploy credentials
+*.PublishSettings
+publish-profile*.xml
