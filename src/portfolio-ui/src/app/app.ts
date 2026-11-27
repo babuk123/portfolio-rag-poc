@@ -34,6 +34,8 @@ export class App implements OnInit {
     'Which holdings have unrealized losses?',
     'Is any single holding above the concentration limit?',
     'What advisory fee applies to this account?',
+    'What is this portfolio worth right now at live prices?',
+    'How is MSFT trading today?',
   ];
 
   readonly hasIndexedReview = computed(() => this.reviews().some(r => r.status === 'Indexed'));
@@ -101,7 +103,7 @@ export class App implements OnInit {
 
     this.api.ask(id, question, history).subscribe({
       next: res => {
-        this.messages.update(m => [...m, { role: 'assistant', content: res.answer, citations: res.citations, grounded: res.grounded }]);
+        this.messages.update(m => [...m, { role: 'assistant', content: res.answer, citations: res.citations, grounded: res.grounded, liveData: res.liveData }]);
         this.asking.set(false);
       },
       error: e => {

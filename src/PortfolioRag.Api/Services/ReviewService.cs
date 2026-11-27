@@ -10,11 +10,13 @@ namespace PortfolioRag.Api.Services;
 /// return 202 Accepted, and let a worker do the rest (see README "Production design").
 /// </summary>
 public class ReviewService(
-    AppDbContext db, PdfService pdf, BlobStorageService blobs, IngestionService ingestion, ILogger<ReviewService> log)
+    AppDbContext db, PdfService pdf, BlobStorageService blobs, IngestionService ingestion,
+    MarketDataService market, ILogger<ReviewService> log)
 {
     public async Task<ReviewDto?> CreateAsync(string customerId, CreateReviewRequest input, CancellationToken ct)
     {
-        var customer = await db.Customers.Include(c => c.Holdings).FirstOrDefaultAsync(c => c.Id == customerId, ct);
+        // AsNoTracking: live prices are written onto these Holding objects and must not be saved back to SQL.
+        var customer = await db.Customers.Include(c => c.Holdings).AsNoTracking().FirstOrDefaultAsync(c => c.Id == customerId, ct);
         if (customer is null) return null;
 
         var review = new ReviewRequest
@@ -28,8 +30,11 @@ public class ReviewService(
 
         try
         {
-            var portfolio = PortfolioService.Build(customer);
-            var bytes = pdf.CreatePortfolioReview(portfolio, review);
+            // Live prices at the moment the review is generated (falls back to stored prices if not configured).
+            var live = await market.ApplyLivePricesAsync(customer.Holdings, ct);
+            var portfolio = PortfolioService.Build(customer, live);
+            var history = await market.GetPortfolioHistoryAsync(portfolio, 12, ct);   // null -> illustrative curve
+            var bytes = pdf.CreatePortfolioReview(portfolio, review, history);
 
             review.BlobName = $"reviews/{customerId}/{review.CreatedUtc:yyyyMMdd-HHmmss}-{review.Id:N}.pdf";
             await blobs.UploadPdfAsync(review.BlobName, bytes, new Dictionary<string, string>

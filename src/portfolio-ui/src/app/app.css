@@ -71,3 +71,8 @@ textarea, .ask input { width: 100%; box-sizing: border-box; padding: 8px 10px; b
 .suggestions { display: flex; flex-direction: column; gap: 6px; }
 .chip { background: #eef3fa; color: #1f3a5f; font-weight: 500; text-align: left; }
 .ask { display: flex; gap: 8px; }
+
+.price-src { display: block; margin-top: 2px; }
+.price-src.live::before { content: "●"; color: #1fa971; margin-right: 4px; }
+.small { font-size: 12px; }
+.live-chip { display: inline-block; font-size: 11px; background: #e8f7ef; color: #137333; border-radius: 10px; padding: 2px 8px; margin: 2px 4px 0 0; }

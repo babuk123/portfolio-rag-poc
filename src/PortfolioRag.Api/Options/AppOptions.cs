@@ -31,3 +31,16 @@ public class BlobStorageOptions
     public string ConnectionString { get; set; } = "UseDevelopmentStorage=true";
     public string Container { get; set; } = "portfolio-docs";
 }
+
+/// <summary>Live market data. Leave the keys empty and the app falls back to the stored sample prices.</summary>
+public class MarketDataOptions
+{
+    public const string Section = "MarketData";
+    /// <summary>Finnhub (finnhub.io): live quotes. Free tier: 60 calls per minute.</summary>
+    public string FinnhubApiKey { get; set; } = "";
+    /// <summary>Twelve Data (twelvedata.com): monthly closing prices for the 12-month chart. Free tier: 8 calls per minute, 800 per day.</summary>
+    public string TwelveDataApiKey { get; set; } = "";
+    /// <summary>Quotes are cached so repeated screens and chat questions don't burn the free quota.</summary>
+    public int QuoteCacheSeconds { get; set; } = 60;
+    public int HistoryCacheHours { get; set; } = 12;
+}

@@ -13,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<AzureOpenAIOptions>(builder.Configuration.GetSection(AzureOpenAIOptions.Section));
 builder.Services.Configure<AzureSearchOptions>(builder.Configuration.GetSection(AzureSearchOptions.Section));
 builder.Services.Configure<BlobStorageOptions>(builder.Configuration.GetSection(BlobStorageOptions.Section));
+builder.Services.Configure<MarketDataOptions>(builder.Configuration.GetSection(MarketDataOptions.Section));
 
 // ---- Data ----
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("Sql")));
@@ -23,6 +24,21 @@ builder.Services.AddSingleton<OpenAIService>();
 builder.Services.AddSingleton<SearchService>();
 builder.Services.AddSingleton<BlobStorageService>();
 builder.Services.AddSingleton<PdfService>();
+
+// Live market data: named HttpClients from IHttpClientFactory (pooled handlers, no socket exhaustion,
+// DNS changes picked up) with short timeouts so a slow provider can't hang an advisor's request.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient(MarketDataService.FinnhubClient, c =>
+{
+    c.BaseAddress = new Uri("https://finnhub.io/api/v1/");
+    c.Timeout = TimeSpan.FromSeconds(5);
+});
+builder.Services.AddHttpClient(MarketDataService.TwelveDataClient, c =>
+{
+    c.BaseAddress = new Uri("https://api.twelvedata.com/");
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddSingleton<MarketDataService>();
 // Anything that uses the DbContext -> Scoped (one per HTTP request).
 builder.Services.AddScoped<PortfolioService>();
 builder.Services.AddScoped<ReviewService>();

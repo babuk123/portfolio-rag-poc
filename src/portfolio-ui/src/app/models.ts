@@ -16,6 +16,7 @@ export interface Holding {
   marketValue: number;
   gainLoss: number;
   weightPct: number;
+  dayChangePct?: number | null;
 }
 
 export interface Allocation {
@@ -37,6 +38,9 @@ export interface Portfolio {
   totalGainLoss: number;
   holdings: Holding[];
   allocation: Allocation[];
+  priceSource: string;
+  pricesAsOfUtc?: string | null;
+  dayChange?: number | null;
 }
 
 export interface Review {
@@ -71,10 +75,12 @@ export interface ChatResponse {
   citations: Citation[];
   grounded: boolean;
   chunksRetrieved: number;
+  liveData?: string[];
 }
 
 /** A chat message as shown in the UI (assistant messages carry their citations). */
 export interface ChatMessageView extends ChatTurn {
   citations?: Citation[];
   grounded?: boolean;
+  liveData?: string[];
 }

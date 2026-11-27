@@ -3,13 +3,22 @@ namespace PortfolioRag.Api.Models;
 public record CustomerListItem(string Id, string FullName, string RiskProfile, string AdvisorName, decimal TotalValue);
 
 public record HoldingDto(string Symbol, string Name, string AssetClass, decimal Quantity,
-    decimal CostPerShare, decimal CurrentPrice, decimal MarketValue, decimal GainLoss, decimal WeightPct);
+    decimal CostPerShare, decimal CurrentPrice, decimal MarketValue, decimal GainLoss, decimal WeightPct,
+    decimal? DayChangePct = null);
 
 public record AllocationDto(string AssetClass, decimal MarketValue, decimal WeightPct, decimal TargetPct);
 
 public record PortfolioDto(string CustomerId, string FullName, string Email, string AccountNumberMasked,
     string RiskProfile, string AdvisorName, decimal TotalValue, decimal TotalCost, decimal TotalGainLoss,
-    IReadOnlyList<HoldingDto> Holdings, IReadOnlyList<AllocationDto> Allocation);
+    IReadOnlyList<HoldingDto> Holdings, IReadOnlyList<AllocationDto> Allocation,
+    string PriceSource = "Stored sample prices", DateTime? PricesAsOfUtc = null, decimal? DayChange = null);
+
+/// <summary>One live quote. AsOfUtc is the time of the last trade the provider reported.</summary>
+public record StockQuote(string Symbol, decimal Price, decimal Change, decimal ChangePct, decimal PreviousClose,
+    decimal DayHigh, decimal DayLow, DateTime AsOfUtc, string Source);
+
+/// <summary>Live quotes applied to a set of holdings.</summary>
+public record LivePricing(IReadOnlyDictionary<string, StockQuote> Quotes, DateTime AsOfUtc, string Source);
 
 public record CreateReviewRequest(string RequestedBy, string? AdvisorNotes);
 
@@ -22,7 +31,8 @@ public record ChatRequest(string CustomerId, string Question, List<ChatTurn>? Hi
 
 public record Citation(int Number, string DocumentName, int PageNumber, string BlobName, string DocType, string Snippet, double Score);
 
-public record ChatResponse(string Answer, IReadOnlyList<Citation> Citations, bool Grounded, int ChunksRetrieved);
+public record ChatResponse(string Answer, IReadOnlyList<Citation> Citations, bool Grounded, int ChunksRetrieved,
+    IReadOnlyList<string>? LiveData = null);   // live market data the answer used (shown as a badge in the UI)
 
 public static class Mapping
 {

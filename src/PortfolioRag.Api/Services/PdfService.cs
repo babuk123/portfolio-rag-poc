@@ -18,7 +18,7 @@ public class PdfService
 
     static PdfService() => QuestPDF.Settings.License = LicenseType.Community;
 
-    public byte[] CreatePortfolioReview(PortfolioDto p, ReviewRequest req)
+    public byte[] CreatePortfolioReview(PortfolioDto p, ReviewRequest req, PortfolioHistory? history = null)
     {
         var drift = p.Allocation.Select(a => (a, diff: a.WeightPct - a.TargetPct)).ToList();
         var needsRebalance = drift.Where(d => Math.Abs(d.diff) > 5).ToList();
@@ -69,10 +69,21 @@ public class PdfService
                     Kpi("Cost basis", $"{p.TotalCost:C}", Navy);
                     Kpi("Unrealized gain/loss", $"{p.TotalGainLoss:C} ({pct:+0.0;-0.0}%)", p.TotalGainLoss < 0 ? "#B42318" : "#137333");
                 });
-                var history = ChartSvg.SampleHistory(p, ToLocal(req.CreatedUtc));
-                col.Item().Height(170).Svg(size => ChartSvg.LineChart(size.Width, size.Height, history, p.TotalCost));
-                // Full sentences so the chatbot can retrieve them; clearly marked as sample data.
-                col.Item().Text($"Portfolio value trend, last 12 months (illustrative sample data for this POC): from {history[0].Value:C0} in {history[0].Month:MMMM yyyy} to {history[^1].Value:C0} in {history[^1].Month:MMMM yyyy}. The dashed line is the total cost basis of {p.TotalCost:C0}.")
+                // Where the prices came from, as a full sentence so the chatbot can answer "how current are these numbers?"
+                // Before the open, on weekends and holidays the quote is from an earlier session: say which day.
+                var dayLabel = p.PricesAsOfUtc is { } q && ToLocal(q).Date != ToLocal(DateTime.UtcNow).Date
+                    ? $"on {ToLocal(q):MMMM d} (last trading session)" : "today";
+                var priceLine = p.PricesAsOfUtc is { } asOf
+                    ? $"Prices: {p.PriceSource}, last trade as of {ToLocal(asOf):MMMM d, yyyy h:mm tt} ET." +
+                      (p.DayChange is { } dc ? $" Change in portfolio value {dayLabel}: {(dc < 0 ? "-" : "+")}{Math.Abs(dc):C0}." : "")
+                    : "Prices: stored sample prices (live market data is not configured).";
+                col.Item().Text(priceLine).FontSize(8.5f).FontColor(Colors.Grey.Darken1);
+
+                var points = history?.Points ?? ChartSvg.SampleHistory(p, ToLocal(req.CreatedUtc));
+                var trendSource = history is null ? "illustrative sample data, not real prices" : history.Source + ", using current share quantities";
+                col.Item().Height(170).Svg(size => ChartSvg.LineChart(size.Width, size.Height, points, p.TotalCost));
+                // Full sentences so the chatbot can retrieve them; the source says whether the curve is real.
+                col.Item().Text($"Portfolio value trend, last {points.Count} months ({trendSource}): from {points[0].Value:C0} in {points[0].Month:MMMM yyyy} to {points[^1].Value:C0} in {points[^1].Month:MMMM yyyy}. The dashed line is the total cost basis of {p.TotalCost:C0}.")
                     .FontSize(8).FontColor(Colors.Grey.Darken1);
 
                 // 3. Asset allocation vs target
@@ -106,11 +117,11 @@ public class PdfService
                     row.ConstantItem(16);
                     row.RelativeItem().AlignMiddle().Table(table =>
                     {
-                        table.ColumnsDefinition(c => { c.ConstantColumn(14); c.RelativeColumn(); c.RelativeColumn(3); c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(); });
+                        table.ColumnsDefinition(c => { c.ConstantColumn(14); c.RelativeColumn(1.1f); c.RelativeColumn(2.6f); c.RelativeColumn(1.5f); c.RelativeColumn(1.8f); c.RelativeColumn(1.7f); c.RelativeColumn(1.1f); });
                         table.Header(h =>
                         {
                             h.Cell().Text("");
-                            foreach (var title in new[] { "Symbol", "Name", "Market value", "Gain/loss", "Weight" })
+                            foreach (var title in new[] { "Symbol", "Name", "Price", "Market value", "Gain/loss", "Weight" })
                                 h.Cell().BorderBottom(1).BorderColor(Navy).PaddingVertical(3).Text(title).Bold().FontSize(9).FontColor(Navy);
                         });
                         foreach (var (h, i) in p.Holdings.Select((h, i) => (h, i)))
@@ -118,6 +129,7 @@ public class PdfService
                             table.Cell().PaddingVertical(4).AlignMiddle().Width(9).Height(9).Background(ChartSvg.Palette[i % ChartSvg.Palette.Length]);
                             table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).Text(h.Symbol).Bold().FontSize(9);
                             table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).Text(h.Name).FontSize(9);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).AlignRight().Text($"{h.CurrentPrice:C2}").FontSize(9);
                             table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).AlignRight().Text($"{h.MarketValue:C0}").FontSize(9);
                             table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).AlignRight().Text($"{h.GainLoss:C0}").FontSize(9).FontColor(h.GainLoss < 0 ? "#B42318" : "#137333");
                             table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(3).AlignRight().Text($"{h.WeightPct:F1}%").FontSize(9);
@@ -139,6 +151,12 @@ public class PdfService
                     var top = p.Holdings.FirstOrDefault();
                     if (top is not null && top.WeightPct > 20)
                         t.Line($"Concentration: {top.Symbol} is {top.WeightPct:F1}% of the portfolio, above the 20% single-holding guideline.");
+
+                    var movers = p.Holdings.Where(h => h.DayChangePct is not null && Math.Abs(h.DayChangePct.Value) >= 1)
+                        .OrderByDescending(h => Math.Abs(h.DayChangePct!.Value))
+                        .Select(h => $"{h.Symbol} {h.DayChangePct:+0.0;-0.0}%").ToList();
+                    if (movers.Count > 0)
+                        t.Line($"Notable moves {dayLabel} (live quotes): {string.Join(", ", movers)}.");
 
                     var losers = p.Holdings.Where(h => h.GainLoss < 0).Select(h => h.Symbol).ToList();
                     if (losers.Count > 0)

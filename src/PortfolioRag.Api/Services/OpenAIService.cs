@@ -53,4 +53,11 @@ public class OpenAIService
         ChatCompletion completion = await _chat.CompleteChatAsync(messages, options, ct);
         return completion.Content.Count > 0 ? completion.Content[0].Text : "";
     }
+
+    /// <summary>Raw completion, for function calling: the caller inspects FinishReason and ToolCalls.</summary>
+    public async Task<ChatCompletion> CompleteRawAsync(IEnumerable<ChatMessage> messages, ChatCompletionOptions options, CancellationToken ct)
+    {
+        ChatCompletion completion = await _chat.CompleteChatAsync(messages, options, ct);
+        return completion;
+    }
 }
